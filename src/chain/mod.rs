@@ -1,3 +1,5 @@
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::SystemTimeError;
 
 use crate::chain::evm::EvmProvider;
@@ -16,6 +18,42 @@ pub mod solana;
 pub enum NetworkProvider {
     Evm(EvmProvider),
     Solana(SolanaProvider),
+}
+
+#[derive(Clone)]
+pub struct NetworkProviderGroup {
+    providers: Arc<Vec<NetworkProvider>>,
+    cursor: Arc<AtomicUsize>,
+}
+
+impl NetworkProviderGroup {
+    pub fn new(providers: Vec<NetworkProvider>) -> Result<Self, &'static str> {
+        if providers.is_empty() {
+            return Err("provider group requires at least one provider");
+        }
+
+        Ok(Self {
+            providers: Arc::new(providers),
+            cursor: Arc::new(AtomicUsize::new(0)),
+        })
+    }
+
+    pub fn primary(&self) -> &NetworkProvider {
+        &self.providers[0]
+    }
+
+    fn next_for_settlement(&self) -> NetworkProvider {
+        if self.providers.len() == 1 {
+            return self.providers[0].clone();
+        }
+
+        let idx = self.cursor.fetch_add(1, Ordering::Relaxed) % self.providers.len();
+        self.providers[idx].clone()
+    }
+
+    pub fn providers(&self) -> &[NetworkProvider] {
+        self.providers.as_ref().as_slice()
+    }
 }
 
 pub trait NetworkProviderOps {
@@ -61,6 +99,23 @@ impl Facilitator for NetworkProvider {
             NetworkProvider::Evm(provider) => provider.supported().await,
             NetworkProvider::Solana(provider) => provider.supported().await,
         }
+    }
+}
+
+impl Facilitator for NetworkProviderGroup {
+    type Error = FacilitatorLocalError;
+
+    async fn verify(&self, request: &VerifyRequest) -> Result<VerifyResponse, Self::Error> {
+        self.primary().verify(request).await
+    }
+
+    async fn settle(&self, request: &SettleRequest) -> Result<SettleResponse, Self::Error> {
+        let provider = self.next_for_settlement();
+        provider.settle(request).await
+    }
+
+    async fn supported(&self) -> Result<SupportedPaymentKindsResponse, Self::Error> {
+        self.primary().supported().await
     }
 }
 
