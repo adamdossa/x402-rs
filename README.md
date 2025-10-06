@@ -228,7 +228,9 @@ Available variables:
 * `HOST`: HTTP host to bind to (default: `0.0.0.0`),
 * `PORT`: HTTP server port (default: `8080`),
 * `SIGNER_TYPE` (required): Type of signer to use. Only `private-key` is supported now,
-* `EVM_PRIVATE_KEY` (required): Private key in hex for EVM networks, like `0xdeadbeef...`,
+* `EVM_PRIVATE_KEYS`: Optional comma-separated list of hex private keys for EVM networks (e.g. `0xkey1,0xkey2`).
+  If omitted, the facilitator falls back to a single `EVM_PRIVATE_KEY` value.
+* `EVM_PRIVATE_KEY` (required if `EVM_PRIVATE_KEYS` is unset): Private key in hex for EVM networks, like `0xdeadbeef...`,
 * `SOLANA_PRIVATE_KEY` (required): Private key in hex for Solana networks, like `0xdeadbeef...`,
 * `RPC_URL_BASE_SEPOLIA`: Ethereum RPC endpoint for Base Sepolia testnet,
 * `RPC_URL_BASE`: Ethereum RPC endpoint for Base mainnet,

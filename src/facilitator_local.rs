@@ -44,7 +44,7 @@ impl FacilitatorLocal {
     pub fn kinds(&self) -> Vec<SupportedPaymentKind> {
         self.provider_cache
             .into_iter()
-            .map(|(network, provider)| match provider {
+            .map(|(network, providers)| match providers.primary() {
                 NetworkProvider::Evm(_) => SupportedPaymentKind {
                     x402_version: X402Version::V1,
                     scheme: Scheme::Exact,
@@ -66,15 +66,14 @@ impl FacilitatorLocal {
     pub fn health(&self) -> Vec<HealthStatus> {
         self.provider_cache
             .into_iter()
-            .map(|(network, provider)| match provider {
-                NetworkProvider::Evm(_) => HealthStatus {
-                    network: *network,
-                    address: provider.signer_address(),
-                },
-                NetworkProvider::Solana(provider) => HealthStatus {
-                    network: *network,
-                    address: provider.signer_address(),
-                },
+            .flat_map(|(network, providers)| {
+                providers
+                    .providers()
+                    .iter()
+                    .map(move |provider| HealthStatus {
+                        network: *network,
+                        address: provider.signer_address(),
+                    })
             })
             .collect()
     }
